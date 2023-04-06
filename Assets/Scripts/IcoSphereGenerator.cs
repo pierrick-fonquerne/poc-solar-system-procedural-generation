@@ -9,6 +9,12 @@ public class IcoSphereGenerator
 
     // Cache for middle points to avoid duplication when subdividing faces
     private Dictionary<long, int> middlePointIndexCache;
+    // Scale factor for erosion
+    private float erosionScale = 1f;
+    // Strength of the erosion
+    private float erosionStrength = 5f;
+    // Number of layers of Perlin noise to combine for more complex erosion
+    private int erosionLayers = 4;
 
     // Constructor for the IcoSphereGenerator
     public IcoSphereGenerator(float radius, int numSubdivisions)
@@ -79,7 +85,21 @@ public class IcoSphereGenerator
     private int AddVertex(Vector3 vertex)
     {
         int index = Vertices.Count;
-        Vertices.Add(vertex.normalized);
+
+        // Calculate the combined elevation from multiple layers of Perlin noise
+        float elevation = 0;
+        float frequency = 1;
+        float amplitude = 1;
+        for (int i = 0; i < erosionLayers; i++)
+        {
+            elevation += Mathf.PerlinNoise(vertex.x * erosionScale * frequency + 0.5f, vertex.y * erosionScale * frequency + 0.5f) * amplitude;
+            frequency *= 2;
+            amplitude *= erosionStrength;
+        }
+
+        // Apply the erosion to the vertex and add it to the list
+        float finalElevation = 1f + elevation * 0.1f; // Increase the factor (e.g., 0.1f) to make the features more prominent
+        Vertices.Add(vertex.normalized * finalElevation);
         return index;
     }
 
