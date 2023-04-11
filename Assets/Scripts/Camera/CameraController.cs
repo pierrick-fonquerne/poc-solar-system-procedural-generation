@@ -77,23 +77,4 @@ public class CameraController : MonoBehaviour
             angle -= 360F;
         return Mathf.Clamp(angle, min, max);
     }
-
-    /// <summary>
-    /// Adjusts the distance of the camera from the origin to ensure that the sun is always visible.
-    /// </summary>
-    /// <param name="sun">The GameObject representing the sun.</param>
-    public void AdjustCameraDistance(GameObject sun)
-    {
-        // Calculate the distance from the origin to the sun
-        float sunDistance = sun.transform.position.magnitude;
-
-        // Calculate the camera distance as the sum of the sun distance and the size of the sun's bounding box
-        float cameraDistance = sunDistance + sun.GetComponent<MeshRenderer>().bounds.extents.magnitude * Constants.SCALE_FACTOR;
-
-        // If the camera distance is greater than the current distance from the origin, move the camera
-        if (cameraDistance > transform.position.magnitude)
-        {
-            transform.position = transform.position.normalized * cameraDistance;
-        }
-    }
 }

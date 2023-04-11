@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// This script generates a celestial object (planet, moon, or sun) using an icosphere.
+/// This script generates a celestial object (planet, moon, or star) using an icosphere.
 /// </summary>
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class CelestialObjectGenerator : MonoBehaviour
