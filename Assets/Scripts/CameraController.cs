@@ -2,8 +2,9 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-  public float moveSpeed = 5.0f; // Movement speed
+    public float moveSpeed = 5.0f; // Movement speed
     public float rotationSpeed = 120.0f; // Rotation speed
+    public float rollSpeed = 60.0f; // Roll speed
     public float yMinLimit = -80f; // Minimum vertical angle
     public float yMaxLimit = 80f; // Maximum vertical angle
 
@@ -49,6 +50,16 @@ public class CameraController : MonoBehaviour
         }
 
         transform.position += moveDirection.normalized * moveSpeed * Time.deltaTime;
+
+        // Roll the camera using the A and E keys
+        if (Input.GetKey(KeyCode.A))
+        {
+            transform.Rotate(Vector3.forward, rollSpeed * Time.deltaTime, Space.Self);
+        }
+        if (Input.GetKey(KeyCode.E))
+        {
+            transform.Rotate(Vector3.forward, -rollSpeed * Time.deltaTime, Space.Self);
+        }
     }
 
     // Clamp the angle between the min and max limits

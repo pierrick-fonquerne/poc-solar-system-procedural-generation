@@ -1,36 +1,45 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-// This script generates a celestial object (planet, moon, or sun) using an icosphere.
+/// <summary>
+/// This script generates a celestial object (planet, moon, or sun) using an icosphere.
+/// </summary>
 [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 public class CelestialObjectGenerator : MonoBehaviour
 {
-    public int numSubdivisions = 4; // Number of subdivisions for the icosphere
-    public float radius = 3f; // Radius of the celestial object
-
     private Mesh mesh; // The mesh of the celestial object
-    private IcoSphereGenerator icoSphereGenerator; // The icosphere generator used to create the celestial object
 
-    // Generates the celestial object when the game starts
-    private void Awake()
-    {
-        GenerateCelestialObjec();
-    }
-
-    // Generates the celestial object with the specified subdivisions and radius
-    public void GenerateCelestialObjec()
+    /// <summary>
+    /// Generates a celestial object with the given vertices and triangles.
+    /// </summary>
+    /// <param name="vertices">The vertices of the icosphere.</param>
+    /// <param name="triangles">The triangles of the icosphere.</param>
+    public CelestialObjectGenerator(List<Vector3> vertices, List<int> triangles)
     {
         mesh = new Mesh(); // Create a new mesh
-        GetComponent<MeshFilter>().mesh = mesh; // Assign the new mesh to the MeshFilter component
 
-        // Create an icosphere generator with the given radius and subdivisions
-        icoSphereGenerator = new IcoSphereGenerator(radius, numSubdivisions);
-        
         // Assign the icosphere's vertices and triangles to the mesh
-        mesh.vertices = icoSphereGenerator.Vertices.ToArray();
-        mesh.triangles = icoSphereGenerator.Triangles.ToArray();
+        mesh.vertices = vertices.ToArray();
+        mesh.triangles = triangles.ToArray();
 
         // Recalculate the mesh normals and bounds for proper shading and rendering
         mesh.RecalculateNormals();
         mesh.RecalculateBounds();
+    }
+
+    /// <summary>
+    /// Generates a celestial object GameObject.
+    /// </summary>
+    /// <returns>The generated celestial object GameObject.</returns>
+    public GameObject GenerateObject()
+    {
+        GameObject obj = new GameObject("Celestial Object");
+        MeshFilter meshFilter = obj.AddComponent<MeshFilter>();
+        meshFilter.mesh = mesh;
+
+        MeshRenderer meshRenderer = obj.AddComponent<MeshRenderer>();
+        meshRenderer.material = new Material(Shader.Find("Standard")); // Utilisation du Shader par défaut
+
+        return obj;
     }
 }
