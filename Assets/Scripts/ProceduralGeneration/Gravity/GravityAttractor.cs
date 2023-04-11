@@ -17,4 +17,15 @@ public class GravityAttractor : MonoBehaviour
         Vector3 force = direction.normalized * forceMagnitude;
         affectedObject.AddForce(force);
     }
+    
+    /// <summary>
+    /// Calculates the initial orbital velocity for an object at a given distance.
+    /// </summary>
+    /// <param name="distance">The distance between the object and the attractor.</param>
+    /// <returns>The initial orbital velocity.</returns>
+    public float InitialOrbitalVelocity(float distance)
+    {
+        float starMass = GetComponent<Rigidbody>().mass;
+        return Mathf.Sqrt(Constants.GRAVITATIONAL_CONSTANT * starMass / distance);
+    }
 }

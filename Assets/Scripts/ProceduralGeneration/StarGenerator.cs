@@ -5,8 +5,8 @@ using UnityEngine;
 /// </summary>
 public class StarGenerator : CelestialObject
 {
-    public float minStarRadius = 5f;
-    public float maxStarRadius = 10f;
+    public float minStarRadius = 10f;
+    public float maxStarRadius = 15f;
     public int starSubdivisions = 3;
     public float starOrbitDistance = 20f;
 
@@ -18,7 +18,7 @@ public class StarGenerator : CelestialObject
     /// Generates a star with a random radius and subdivisions and places it at a given distance.
     /// </summary>
     /// <param name="distance">The distance from the origin.</param>
-    public void GenerateStar(float distance)
+    public GameObject GenerateStar(float distance)
     {
         // Generate a random radius for the star within the specified range
         float radius = Random.Range(minStarRadius, maxStarRadius);
@@ -51,5 +51,7 @@ public class StarGenerator : CelestialObject
 
         // Add a GravityAffectedObject component to the star to make it affected by gravity
         star.AddComponent<GravityAffectedObject>();
+
+        return star;
     }
 }

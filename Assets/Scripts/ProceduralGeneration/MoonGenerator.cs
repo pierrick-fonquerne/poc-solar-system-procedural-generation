@@ -6,9 +6,13 @@ using UnityEngine;
 public class MoonGenerator : CelestialObject
 {
     public float minMoonRadius = 0.5f;
-    public float maxMoonRadius = 1.5f;
+    public float maxMoonRadius = 1f;
     public int moonSubdivisions = 2;
-    public float moonOrbitDistance = 5f;
+    public float moonOrbitDistance = 1f;
+    public float rotationSpeedMultiplier = 1f;
+    public float orbitalSpeedMultiplier = 5f;
+    public float minRotationSpeed = 3f;
+    public float maxRotationSpeed = 5f;
 
     public MoonGenerator(Transform parentTransform) : base(parentTransform)
     {
@@ -42,5 +46,17 @@ public class MoonGenerator : CelestialObject
         moon.GetComponent<Rigidbody>().mass = CalculateMass(radius);
         moon.GetComponent<Rigidbody>().useGravity = false;
         moon.AddComponent<GravityAffectedObject>();
+
+        // Set the moon's rotation speed
+        float rotationSpeed = Random.Range(minRotationSpeed, maxRotationSpeed) * rotationSpeedMultiplier;
+        moon.AddComponent<Rotator>();
+        moon.GetComponent<Rotator>().angularVelocity = rotationSpeed;
+
+        // Set the moon's orbital speed
+        float distanceToPlanet = Vector3.Distance(moon.transform.position, planet.transform.position);
+        float orbitalSpeed = planet.GetComponent<GravityAttractor>().InitialOrbitalVelocity(distanceToPlanet * Constants.SCALE_FACTOR);
+        moon.AddComponent<Orbiter>();
+        moon.GetComponent<Orbiter>().orbitalVelocity = orbitalSpeed;
+        moon.GetComponent<Orbiter>().centerOfMass = planet.transform;
     }
 }
