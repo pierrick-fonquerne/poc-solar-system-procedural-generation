@@ -92,7 +92,7 @@ public class CameraController : MonoBehaviour
             transform.Rotate(Vector3.forward, -rollSpeed * Time.deltaTime, Space.Self);
         }
 
-        // New: Zoom in and out with the mouse wheel
+        // Zoom in and out with the mouse wheel
         float scrollInput = Input.GetAxis("Mouse ScrollWheel");
         if (scrollInput != 0.0f)
         {
