@@ -64,11 +64,17 @@ public class SolarSystemGenerator : MonoBehaviour
     {
         float radius = Random.Range(minSunRadius, maxSunRadius);
         GameObject sun = GenerateIcosphere(radius, sunSubdivisions);
-        sun.GetComponent<MeshRenderer>().material.color = Color.yellow;
+        MeshRenderer sunRenderer = sun.GetComponent<MeshRenderer>();
+
+        sunRenderer.material = new Material(Resources.Load<Shader>("Shaders/SunShader"));
+        sunRenderer.material.SetColor("_Color", Color.yellow);
+        sunRenderer.material.SetFloat("_Emission", 2f);
+
         sun.AddComponent<Light>();
         sun.GetComponent<Light>().type = LightType.Point;
         sun.GetComponent<Light>().range = sunOrbitDistance * 2f;
         sun.GetComponent<Light>().intensity = 1.5f;
+
         return sun;
     }
 
@@ -102,7 +108,7 @@ public class SolarSystemGenerator : MonoBehaviour
     {
         IcoSphereGenerator icoSphereGenerator = new IcoSphereGenerator(radius, subdivisions);
         CelestialObjectGenerator celestialObjectGenerator = new CelestialObjectGenerator(icoSphereGenerator.Vertices, icoSphereGenerator.Triangles);
-        
+
         GameObject icosphere = celestialObjectGenerator.GenerateObject();
         icosphere.transform.SetParent(transform);
         return icosphere;

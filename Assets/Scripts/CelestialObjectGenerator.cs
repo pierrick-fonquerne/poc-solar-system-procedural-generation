@@ -33,13 +33,23 @@ public class CelestialObjectGenerator : MonoBehaviour
     /// <returns>The generated celestial object GameObject.</returns>
     public GameObject GenerateObject()
     {
-        GameObject obj = new GameObject("Celestial Object");
-        MeshFilter meshFilter = obj.AddComponent<MeshFilter>();
-        meshFilter.mesh = mesh;
+        GameObject icoSpherePrefab = Resources.Load<GameObject>("Prefabs/IcoSphere");
 
-        MeshRenderer meshRenderer = obj.AddComponent<MeshRenderer>();
-        meshRenderer.material = new Material(Shader.Find("Standard")); // Utilisation du Shader par défaut
+        if (icoSpherePrefab == null)
+        {
+            Debug.LogError("Failed to load IcoSphere prefab from Resources/Prefabs directory!");
+        }
+        else
+        {
+            GameObject obj = Instantiate(icoSpherePrefab);
+            obj.name = "Celestial Object";
 
-        return obj;
+            MeshFilter meshFilter = obj.GetComponent<MeshFilter>();
+            meshFilter.mesh = mesh;
+
+            return obj;
+        }
+
+        return null;
     }
 }
