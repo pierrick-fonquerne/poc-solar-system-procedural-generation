@@ -83,4 +83,4 @@ Contributions to Procedural Solar System Generation are welcome and encouraged! 
 
 ## License
 
-Procedural Solar System Generation is released under the MIT license. See [LICENSE](LICENSE) for details.
+This project is licensed under the Creative Commons Zero v1.0 Universal license (CC0). You are free to use the material for any purpose, without any conditions, including commercial use. You can copy, modify, distribute and perform the work, even for commercial purposes, without asking permission.
