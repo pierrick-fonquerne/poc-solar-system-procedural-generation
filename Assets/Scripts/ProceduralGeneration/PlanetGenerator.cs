@@ -5,15 +5,42 @@ using UnityEngine;
 /// </summary>
 public class PlanetGenerator : CelestialObject
 {
+    /// <summary>
+    /// The maximum number of moons per planet.
+    /// </summary>
     public int maxNumberOfMoonsPerPlanet = 3;
+
+    /// <summary>
+    /// The minimum radius for planets.
+    /// </summary>
     public float minPlanetRadius = 2f;
+
+    /// <summary>
+    /// The maximum radius for planets.
+    /// </summary>
     public float maxPlanetRadius = 4f;
+
+    /// <summary>
+    /// The number of subdivisions for planets.
+    /// </summary>
     public int planetSubdivisions = 2;
+
+    /// <summary>
+    /// The multiplier for orbital speed.
+    /// </summary>
     public float orbitalSpeedMultiplier = 2f;
+
+    /// <summary>
+    /// The multiplier for rotation speed.
+    /// </summary>
     public float rotationSpeedMultiplier = 1f;
 
     private MoonGenerator moonGenerator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PlanetGenerator"/> class.
+    /// </summary>
+    /// <param name="parentTransform">The parent transform for the planet.</param>
     public PlanetGenerator(Transform parentTransform) : base(parentTransform)
     {
         moonGenerator = new MoonGenerator(parentTransform);
@@ -27,48 +54,34 @@ public class PlanetGenerator : CelestialObject
     /// <returns>The generated planet GameObject.</returns>
     public GameObject GeneratePlanet(int planetIndex, GameObject star)
     {
-        // Generate a planet with a random radius and subdivisions
         float radius = Random.Range(minPlanetRadius, maxPlanetRadius);
         GameObject planet = GenerateIcosphere(radius, planetSubdivisions);
 
-        // Calculate the planet's position using the Titius-Bode formula and a random angle
         float planetDistance = TitiusBodeFormula(planetIndex);
         float angle = Random.Range(0, 2 * Mathf.PI);
         float x = planetDistance * Mathf.Cos(angle);
         float z = planetDistance * Mathf.Sin(angle);
 
-        // Set the planet's position and parent it to the Solar System's game object
         planet.transform.parent = parentTransform;
         planet.transform.localPosition = new Vector3(x, 0, z);
         Debug.Log($"Planet generated at position : {planet.transform.position}");
 
-        // Add necessary components to the planet
-        planet.AddComponent<Rigidbody>();
-        planet.GetComponent<Rigidbody>().mass = CalculateMass(radius);
+        planet.AddComponent<Rigidbody>().mass = CalculateMass(radius);
         planet.GetComponent<Rigidbody>().useGravity = false;
         planet.AddComponent<GravityAttractor>();
 
-        // Calculate the orbital speed of the planet
         float orbitalSpeed = star.GetComponent<GravityAttractor>().InitialOrbitalVelocity(planetDistance * Constants.SCALE_FACTOR);
 
-        // Add a GravityAffectedObject component to the planet to make it affected by gravity
         GravityAffectedObject gravityAffectedObject = planet.AddComponent<GravityAffectedObject>();
-
-        // Set the initial velocity of the planet
         Vector3 initialVelocity = Quaternion.Euler(0, 0, 90) * (star.transform.position - planet.transform.position).normalized * orbitalSpeed;
         gravityAffectedObject.GetComponent<Rigidbody>().velocity = initialVelocity;
 
-        // Set the planet's orbital speed
-        planet.AddComponent<Orbiter>();
-        planet.GetComponent<Orbiter>().orbitalVelocity = orbitalSpeed;
+        planet.AddComponent<Orbiter>().orbitalVelocity = orbitalSpeed;
         planet.GetComponent<Orbiter>().centerOfMass = star.transform;
 
-        // Set the planet's rotation speed
         float rotationSpeed = Random.Range(0.1f, 1f) * rotationSpeedMultiplier;
-        planet.AddComponent<Rotator>();
-        planet.GetComponent<Rotator>().angularVelocity = rotationSpeed;
+        planet.AddComponent<Rotator>().angularVelocity = rotationSpeed;
 
-        // Generate moons for the planet
         int numberOfMoons = Random.Range(0, maxNumberOfMoonsPerPlanet + 1);
         for (int j = 0; j < numberOfMoons; j++)
         {
@@ -76,19 +89,6 @@ public class PlanetGenerator : CelestialObject
         }
 
         return planet;
-    }
-
-    /// <summary>
-    /// Calculates the orbital speed of a planet using Kepler's law.
-    /// </summary>
-    /// <param name="starMass">The mass of the central star in kilograms.</param>
-    /// <param name="distance">The distance between the planet and the star in meters.</param>
-    /// <returns>The orbital speed of the planet in meters per second.</returns>
-    private float CalculateOrbitalSpeed(float starMass, float distance)
-    {
-        float orbitalSpeed = Mathf.Sqrt(Constants.GRAVITATIONAL_CONSTANT * starMass / distance);
-
-        return orbitalSpeed;
     }
 
     /// <summary>
@@ -100,7 +100,6 @@ public class PlanetGenerator : CelestialObject
     {
         float distanceAU = 0.4f + 0.3f * Mathf.Pow(2, planetIndex - 1);
         float distance = distanceAU * Constants.AU_TO_UNITY_UNITS * Constants.SCALE_FACTOR;
-
         return distance;
     }
 }
