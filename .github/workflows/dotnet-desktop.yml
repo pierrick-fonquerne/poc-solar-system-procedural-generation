@@ -1,0 +1,41 @@
+name: Build and Test Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+    # Étape 1 : Vérifier le code source
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    # Étape 2 : Configurer .NET
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 6.0 # Remplace par la version de .NET que tu utilises
+
+    # Étape 3 : Restaurer les dépendances
+    - name: Restore Dependencies
+      run: dotnet restore
+
+    # Étape 4 : Build du projet
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    # Étape 5 : Lancer les tests
+    - name: Run Tests
+      run: dotnet test --no-build --configuration Release
+
+    # Étape 6 : Analyse du style de code (optionnelle)
+    - name: Lint Code
+      run: dotnet format --check
