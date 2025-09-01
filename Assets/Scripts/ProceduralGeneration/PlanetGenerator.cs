@@ -31,6 +31,11 @@ public class PlanetGenerator : CelestialObject
         float radius = Random.Range(minPlanetRadius, maxPlanetRadius);
         GameObject planet = GenerateIcosphere(radius, planetSubdivisions);
 
+        // Apply procedural terrain and add a collider for surface interactions
+        PlanetTerrainGenerator.ApplyTerrain(planet);
+        MeshCollider meshCollider = planet.AddComponent<MeshCollider>();
+        meshCollider.sharedMesh = planet.GetComponent<MeshFilter>().mesh;
+
         // Calculate the planet's position using the Titius-Bode formula and a random angle
         float planetDistance = TitiusBodeFormula(planetIndex);
         float angle = Random.Range(0, 2 * Mathf.PI);
