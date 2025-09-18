@@ -54,11 +54,17 @@ public class PlanetGenerator : CelestialObject
         PlanetLodConfig lodConfig = Resources.Load<PlanetLodConfig>("Settings/PlanetLodConfig");
         PlanetLodController lodController = planet.AddComponent<PlanetLodController>();
         lodController.Initialize(lodMeshes, lodConfig);
-        
+        if (lodConfig != null && lodConfig.enableBenchmarking)
+        {
+            PlanetLodBenchmark benchmark = planet.AddComponent<PlanetLodBenchmark>();
+            benchmark.ApplyConfig(lodConfig);
+        }
+
         // Apply procedural terrain and add a collider for surface interactions
         PlanetTerrainGenerator.ApplyTerrain(planet);
         MeshCollider meshCollider = planet.AddComponent<MeshCollider>();
-        meshCollider.sharedMesh = planet.GetComponent<MeshFilter>().mesh;
+        meshCollider.sharedMesh = lodMeshes.Length > 0 ? lodMeshes[0] : planet.GetComponent<MeshFilter>().sharedMesh;
+        lodController.SetMeshCollider(meshCollider);
 
 
         // Calculate the planet's position using the Titius-Bode formula and a random angle
