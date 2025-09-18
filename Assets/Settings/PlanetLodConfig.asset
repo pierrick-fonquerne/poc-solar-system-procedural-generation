@@ -16,4 +16,9 @@ MonoBehaviour:
   - 25
   - 50
   - 100
+  updateInterval: 0.1
+  transitionHysteresis: 5
+  enableBenchmarking: 0
+  benchmarkSampleSize: 120
+  benchmarkLogInterval: 5
   showDebugGizmos: 0
