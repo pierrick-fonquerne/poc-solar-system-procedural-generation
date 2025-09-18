@@ -31,6 +31,30 @@ public class PlanetGenerator : CelestialObject
         float radius = Random.Range(minPlanetRadius, maxPlanetRadius);
         GameObject planet = GenerateIcosphere(radius, planetSubdivisions);
 
+        // Create LOD meshes for different detail levels
+        Mesh[] lodMeshes = new Mesh[3];
+        lodMeshes[0] = planet.GetComponent<MeshFilter>().mesh;
+
+        IcoSphereGenerator generator1 = new IcoSphereGenerator(radius, Mathf.Max(0, planetSubdivisions - 1));
+        Mesh mesh1 = new Mesh();
+        mesh1.vertices = generator1.Vertices.ToArray();
+        mesh1.triangles = generator1.Triangles.ToArray();
+        mesh1.RecalculateNormals();
+        mesh1.RecalculateBounds();
+        lodMeshes[1] = mesh1;
+
+        IcoSphereGenerator generator2 = new IcoSphereGenerator(radius, Mathf.Max(0, planetSubdivisions - 2));
+        Mesh mesh2 = new Mesh();
+        mesh2.vertices = generator2.Vertices.ToArray();
+        mesh2.triangles = generator2.Triangles.ToArray();
+        mesh2.RecalculateNormals();
+        mesh2.RecalculateBounds();
+        lodMeshes[2] = mesh2;
+
+        PlanetLodConfig lodConfig = Resources.Load<PlanetLodConfig>("Settings/PlanetLodConfig");
+        PlanetLodController lodController = planet.AddComponent<PlanetLodController>();
+        lodController.Initialize(lodMeshes, lodConfig);
+
         // Calculate the planet's position using the Titius-Bode formula and a random angle
         float planetDistance = TitiusBodeFormula(planetIndex);
         float angle = Random.Range(0, 2 * Mathf.PI);
