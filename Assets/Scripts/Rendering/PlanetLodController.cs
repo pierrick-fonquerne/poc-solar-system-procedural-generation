@@ -2,34 +2,18 @@ using System;
 using System.Diagnostics;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "PlanetLodConfig", menuName = "Settings/Planet LOD Config")]
-public class PlanetLodConfig : ScriptableObject
-{
-    public float[] transitionDistances = new float[] { 25f, 50f, 100f };
-
-    [Min(0f)]
-    public float updateInterval = 0.1f;
-
-    [Min(0f)]
-    public float transitionHysteresis = 5f;
-
-    public bool enableBenchmarking = false;
-
-    [Min(1)]
-    public int benchmarkSampleSize = 120;
-
-    [Min(0f)]
-    public float benchmarkLogInterval = 5f;
-
-    public bool showDebugGizmos = false;
-}
-
 /// <summary>
 /// Controls level of detail for a planet by switching between meshes of different resolutions.
 /// </summary>
 [RequireComponent(typeof(MeshFilter))]
 public class PlanetLodController : MonoBehaviour
 {
+    // Fallback values used when no PlanetLodConfig asset is assigned, so LOD
+    // switching still works out of the box.
+    private static readonly float[] DefaultTransitionDistances = { 150f, 400f };
+    private const float DefaultTransitionHysteresis = 10f;
+    private const float DefaultUpdateInterval = 0.1f;
+
     [SerializeField]
     private PlanetLodConfig config;
 
@@ -120,7 +104,7 @@ public class PlanetLodController : MonoBehaviour
             cameraTransform = main.transform;
         }
 
-        float updateInterval = config != null ? Mathf.Max(0f, config.updateInterval) : 0f;
+        float updateInterval = config != null ? Mathf.Max(0f, config.updateInterval) : DefaultUpdateInterval;
         float now = Time.time;
         if (now < nextLodUpdateTime)
         {
@@ -235,14 +219,15 @@ public class PlanetLodController : MonoBehaviour
             return;
         }
 
-        float hysteresis = config != null ? Mathf.Max(0f, config.transitionHysteresis) : 0f;
+        float hysteresis = config != null ? Mathf.Max(0f, config.transitionHysteresis) : DefaultTransitionHysteresis;
+        float[] transitionDistances = config != null ? config.transitionDistances : DefaultTransitionDistances;
         degradeSqrThresholds = new float[transitions];
         upgradeSqrThresholds = new float[transitions];
 
         for (int i = 0; i < transitions; i++)
         {
-            float distance = (config != null && i < config.transitionDistances.Length)
-                ? config.transitionDistances[i]
+            float distance = (transitionDistances != null && i < transitionDistances.Length)
+                ? transitionDistances[i]
                 : float.PositiveInfinity;
 
             if (float.IsPositiveInfinity(distance))

@@ -1,20 +1,18 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Generates a smooth icosphere of a given radius. Surface relief is applied
+/// separately by <see cref="PlanetTerrainGenerator"/> so that every LOD level
+/// can share the same deterministic noise field.
+/// </summary>
 public class IcoSphereGenerator
 {
     public List<Vector3> Vertices { get; private set; } // List of vertices for the icosphere
     public List<int> Triangles { get; private set; } // List of triangles for the icosphere
 
-
     // Cache for middle points to avoid duplication when subdividing faces
     private Dictionary<long, int> middlePointIndexCache;
-    // Scale factor for erosion
-    private float erosionScale = 1f;
-    // Strength of the erosion
-    private float erosionStrength = 5f;
-    // Number of layers of Perlin noise to combine for more complex erosion
-    private int erosionLayers = 4;
 
     // Constructor for the IcoSphereGenerator
     public IcoSphereGenerator(float radius, int numSubdivisions)
@@ -74,32 +72,33 @@ public class IcoSphereGenerator
             Subdivide(face[0], face[1], face[2], numSubdivisions);
         }
 
-        // Scale each vertex by the desired radius
+        // Project every vertex onto the sphere of the desired radius
         for (int i = 0; i < Vertices.Count; i++)
         {
             Vertices[i] = Vertices[i].normalized * radius;
         }
     }
 
+    /// <summary>
+    /// Builds a Unity mesh from the generated vertices and triangles.
+    /// </summary>
+    /// <param name="name">Optional name assigned to the mesh.</param>
+    /// <returns>A new mesh with recalculated normals and bounds.</returns>
+    public Mesh BuildMesh(string name = "IcoSphere")
+    {
+        Mesh mesh = new Mesh { name = name };
+        mesh.SetVertices(Vertices);
+        mesh.SetTriangles(Triangles, 0);
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        return mesh;
+    }
+
     // Add a vertex to the vertices list and return its index
     private int AddVertex(Vector3 vertex)
     {
         int index = Vertices.Count;
-
-        // Calculate the combined elevation from multiple layers of Perlin noise
-        float elevation = 0;
-        float frequency = 1;
-        float amplitude = 1;
-        for (int i = 0; i < erosionLayers; i++)
-        {
-            elevation += Mathf.PerlinNoise(vertex.x * erosionScale * frequency + 0.5f, vertex.y * erosionScale * frequency + 0.5f) * amplitude;
-            frequency *= 2;
-            amplitude *= erosionStrength;
-        }
-
-        // Apply the erosion to the vertex and add it to the list
-        float finalElevation = 1f + elevation * 0.1f; // Increase the factor (e.g., 0.1f) to make the features more prominent
-        Vertices.Add(vertex.normalized * finalElevation);
+        Vertices.Add(vertex);
         return index;
     }
 
@@ -118,10 +117,7 @@ public class IcoSphereGenerator
 
         Vector3 point1 = Vertices[indexA];
         Vector3 point2 = Vertices[indexB];
-        Vector3 middle = new Vector3(
-            (point1.x + point2.x) / 2f,
-            (point1.y + point2.y) / 2f,
-            (point1.z + point2.z) / 2f);
+        Vector3 middle = (point1 + point2) / 2f;
 
         int i = AddVertex(middle);
         middlePointIndexCache.Add(key, i);

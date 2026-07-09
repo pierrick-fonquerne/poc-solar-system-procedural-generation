@@ -3,60 +3,73 @@ using UnityEngine;
 /// <summary>
 /// Generates moons around planets in the solar system.
 /// </summary>
+[System.Serializable]
 public class MoonGenerator : CelestialObject
 {
     public float minMoonRadius = 0.5f;
     public float maxMoonRadius = 1f;
     public int moonSubdivisions = 2;
+
+    [Tooltip("Spacing between consecutive moon orbits, in unscaled units.")]
     public float moonOrbitDistance = 1f;
+
     public float rotationSpeedMultiplier = 1f;
-    public float orbitalSpeedMultiplier = 5f;
+    public float orbitalSpeedMultiplier = 1f;
     public float minRotationSpeed = 3f;
     public float maxRotationSpeed = 5f;
 
-    public MoonGenerator(Transform parentTransform) : base(parentTransform)
-    {
-    }
+    [Tooltip("Base noise frequency of the moon terrain.")]
+    public float terrainFrequency = 3f;
+
+    [Tooltip("Maximum terrain elevation as a fraction of the moon radius.")]
+    [Range(0f, 1f)]
+    public float terrainRelief = 0.1f;
 
     /// <summary>
-    /// Generates a moon with a random radius and subdivisions and places it around a given planet at a specified index.
+    /// Generates a moon with a random radius and places it in orbit around the given planet.
     /// </summary>
     /// <param name="planet">The planet GameObject around which the moon will be placed.</param>
     /// <param name="moonIndex">The index of the moon (starting from 0).</param>
-    public void GenerateMoon(GameObject planet, int moonIndex)
+    /// <returns>The generated moon GameObject, or null if creation failed.</returns>
+    public GameObject GenerateMoon(GameObject planet, int moonIndex)
     {
         float radius = Random.Range(minMoonRadius, maxMoonRadius);
-        GameObject moon = GenerateIcosphere(radius, moonSubdivisions);
+        GameObject moon = GenerateIcosphere(radius, moonSubdivisions, $"Moon {moonIndex}");
+        if (moon == null)
+        {
+            return null;
+        }
 
-        // Calculate the distance of the moon from the planet
-        float moonDistance = (moonOrbitDistance + moonOrbitDistance * moonIndex) * Constants.SCALE_FACTOR;
-        // Calculate a random angle for the moon's position
+        PlanetTerrainGenerator.ApplyTerrain(moon, Random.Range(0, 100000), terrainFrequency, radius * terrainRelief);
+
+        // Orbit radius: clear the planet surface, then space each moon out
+        float planetRadius = planet.GetComponent<MeshFilter>().sharedMesh.bounds.extents.x;
+        float moonDistance = planetRadius + (moonOrbitDistance * (moonIndex + 1)) * Constants.SCALE_FACTOR;
+
+        // Place the moon at a random angle around the planet
         float angle = Random.Range(0, 2 * Mathf.PI);
-        // Calculate the x and z positions of the moon based on the distance and angle
         float x = moonDistance * Mathf.Cos(angle);
         float z = moonDistance * Mathf.Sin(angle);
 
-        // Set the moon's parent to the planet and position it
-        moon.transform.parent = planet.transform;
+        // Parent the moon to the planet so it follows the planet's orbit
+        moon.transform.SetParent(planet.transform);
         moon.transform.localPosition = new Vector3(x, 0, z);
-        Debug.Log($"Moon generated at position : {moon.transform.position}");
 
-        // Add a Rigidbody component to the moon and set its mass and useGravity properties
-        moon.AddComponent<Rigidbody>();
-        moon.GetComponent<Rigidbody>().mass = CalculateMass(radius);
-        moon.GetComponent<Rigidbody>().useGravity = false;
-        moon.AddComponent<GravityAffectedObject>();
+        Rigidbody rigidbody = moon.AddComponent<Rigidbody>();
+        rigidbody.mass = CalculateMass(radius);
+        rigidbody.useGravity = false;
+        rigidbody.isKinematic = true;
 
-        // Set the moon's rotation speed
+        // Self rotation
         float rotationSpeed = Random.Range(minRotationSpeed, maxRotationSpeed) * rotationSpeedMultiplier;
-        moon.AddComponent<Rotator>();
-        moon.GetComponent<Rotator>().angularVelocity = rotationSpeed;
+        Rotator rotator = moon.AddComponent<Rotator>();
+        rotator.angularVelocity = rotationSpeed;
 
-        // Set the moon's orbital speed
-        float distanceToPlanet = Vector3.Distance(moon.transform.position, planet.transform.position);
-        float orbitalSpeed = planet.GetComponent<GravityAttractor>().InitialOrbitalVelocity(distanceToPlanet * Constants.SCALE_FACTOR);
-        moon.AddComponent<Orbiter>();
-        moon.GetComponent<Orbiter>().orbitalVelocity = orbitalSpeed;
-        moon.GetComponent<Orbiter>().centerOfMass = planet.transform;
+        // Kepler-based orbital speed around the planet, driven kinematically
+        float orbitalSpeed = planet.GetComponent<GravityAttractor>().InitialOrbitalVelocity(moonDistance);
+        Orbiter orbiter = moon.AddComponent<Orbiter>();
+        orbiter.SetOrbit(planet.transform, orbitalSpeed * orbitalSpeedMultiplier);
+
+        return moon;
     }
 }

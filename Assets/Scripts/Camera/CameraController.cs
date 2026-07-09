@@ -8,15 +8,20 @@ public class CameraController : MonoBehaviour
     public float moveSpeed;
     public float baseMoveSpeed = 5.0f;
     public float moveSpeedMultiplier = 1.0f;
-    public float rotationSpeed = 120.0f;
     public float rollSpeed = 60.0f;
     public float yMinLimit = -80f;
     public float yMaxLimit = 80f;
     public float mouseSensitivity = 1.0f; // Mouse sensitivity
     public float zoomSpeed = 5.0f; // Zoom speed
 
+    // Mouse axes already report a per-frame delta, so they must not be scaled
+    // by Time.deltaTime (that would make sensitivity framerate-dependent).
+    // This constant keeps roughly the same feel as the previous behavior at 60 fps.
+    private const float MouseRotationScale = 2f;
+
     private float x = 0.0f;
     private float y = 0.0f;
+    private float roll = 0.0f;
     private bool isCameraLocked = false; // Camera lock
 
     void Start()
@@ -24,6 +29,7 @@ public class CameraController : MonoBehaviour
         Vector3 angles = transform.eulerAngles;
         x = angles.y;
         y = angles.x;
+        roll = angles.z;
     }
 
     void Update()
@@ -37,13 +43,22 @@ public class CameraController : MonoBehaviour
         if (!isCameraLocked) // Only update camera rotation if it's not locked
         {
             // Rotate the camera using the mouse
-            x += Input.GetAxis("Mouse X") * rotationSpeed * Time.deltaTime * mouseSensitivity;
-            y -= Input.GetAxis("Mouse Y") * rotationSpeed * Time.deltaTime * mouseSensitivity;
+            x += Input.GetAxis("Mouse X") * MouseRotationScale * mouseSensitivity;
+            y -= Input.GetAxis("Mouse Y") * MouseRotationScale * mouseSensitivity;
 
             y = ClampAngle(y, yMinLimit, yMaxLimit);
 
-            Quaternion rotation = Quaternion.Euler(y, x, 0);
-            transform.rotation = rotation;
+            // Roll the camera using the A and E keys
+            if (Input.GetKey(KeyCode.A))
+            {
+                roll += rollSpeed * Time.deltaTime;
+            }
+            if (Input.GetKey(KeyCode.E))
+            {
+                roll -= rollSpeed * Time.deltaTime;
+            }
+
+            transform.rotation = Quaternion.Euler(y, x, roll);
         }
 
         // Calculate move speed based on distance from origin
@@ -81,16 +96,6 @@ public class CameraController : MonoBehaviour
         }
 
         transform.position += moveDirection.normalized * moveSpeed * Time.deltaTime;
-
-        // Roll the camera using the A and E keys
-        if (Input.GetKey(KeyCode.A))
-        {
-            transform.Rotate(Vector3.forward, rollSpeed * Time.deltaTime, Space.Self);
-        }
-        if (Input.GetKey(KeyCode.E))
-        {
-            transform.Rotate(Vector3.forward, -rollSpeed * Time.deltaTime, Space.Self);
-        }
 
         // Zoom in and out with the mouse wheel
         float scrollInput = Input.GetAxis("Mouse ScrollWheel");

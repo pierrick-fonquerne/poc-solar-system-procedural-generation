@@ -2,36 +2,77 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// This script generates a solar system with stars, planets, and moons.
+/// Generates a solar system with stars, planets, and moons.
 /// </summary>
 public class SolarSystemGenerator : MonoBehaviour
 {
-    // Customizable properties
+    [Header("Generation")]
+    [Tooltip("When enabled, a new random seed is picked on every run.")]
+    public bool useRandomSeed = true;
+
+    [Tooltip("Seed used for the generation. The same seed reproduces the same solar system.")]
+    public int seed;
+
+    [Min(0)]
     public int numberOfStars = 1;
+
+    [Min(0)]
     public int numberOfPlanets = 3;
+
+    [Min(1)]
     public int maxNumberOfPlanets = 8;
+
+    [Header("Generators")]
+    public StarGenerator starGenerator = new StarGenerator();
+    public PlanetGenerator planetGenerator = new PlanetGenerator();
+    public MoonGenerator moonGenerator = new MoonGenerator();
 
     private void Start()
     {
-        StarGenerator starGenerator = new StarGenerator(transform);
-        PlanetGenerator planetGenerator = new PlanetGenerator(transform);
-
-        // Create a list to store the GameObjects of each generated star
-        List<GameObject> stars = new List<GameObject>();
-
-        // Generate stars
-        for (int i = 0; i < numberOfStars; i++)
+        if (useRandomSeed)
         {
-            GameObject star = starGenerator.GenerateStar(i);
-            stars.Add(star);
+            seed = Random.Range(int.MinValue, int.MaxValue);
         }
 
-        // Generate planets
-        for (int i = 0; i < numberOfPlanets; i++)
+        Random.InitState(seed);
+        Debug.Log($"Generating solar system with seed {seed}.");
+
+        starGenerator.Initialize(transform);
+        planetGenerator.Initialize(transform);
+        moonGenerator.Initialize(transform);
+
+        // Generate stars, spaced out along the X axis
+        List<GameObject> stars = new List<GameObject>();
+        for (int i = 0; i < numberOfStars; i++)
         {
-            // Pass the GameObject of the first star as an argument
-            // You can modify this to pass the GameObject of the star you want the planet to orbit
+            GameObject star = starGenerator.GenerateStar(i * starGenerator.starSeparation * Constants.SCALE_FACTOR);
+            if (star != null)
+            {
+                stars.Add(star);
+            }
+        }
+
+        if (stars.Count == 0)
+        {
+            Debug.LogWarning("No star was generated; skipping planet generation.", this);
+            return;
+        }
+
+        // Generate planets orbiting the first star, each with its own moons
+        int planetCount = Mathf.Min(numberOfPlanets, maxNumberOfPlanets);
+        for (int i = 0; i < planetCount; i++)
+        {
             GameObject planet = planetGenerator.GeneratePlanet(i, stars[0]);
+            if (planet == null)
+            {
+                continue;
+            }
+
+            int numberOfMoons = Random.Range(0, planetGenerator.maxNumberOfMoonsPerPlanet + 1);
+            for (int j = 0; j < numberOfMoons; j++)
+            {
+                moonGenerator.GenerateMoon(planet, j);
+            }
         }
     }
 }

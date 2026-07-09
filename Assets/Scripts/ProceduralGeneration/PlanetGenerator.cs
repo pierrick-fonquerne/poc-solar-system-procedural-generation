@@ -3,54 +3,60 @@ using UnityEngine;
 /// <summary>
 /// Generates planets in the solar system.
 /// </summary>
+[System.Serializable]
 public class PlanetGenerator : CelestialObject
 {
+    private const int LodLevelCount = 3;
+
     public int maxNumberOfMoonsPerPlanet = 3;
     public float minPlanetRadius = 2f;
     public float maxPlanetRadius = 4f;
-    public int planetSubdivisions = 2;
-    public float orbitalSpeedMultiplier = 2f;
+    public int planetSubdivisions = 3;
+    public float orbitalSpeedMultiplier = 1f;
     public float rotationSpeedMultiplier = 1f;
 
-    private MoonGenerator moonGenerator;
+    [Tooltip("Base noise frequency of the procedural terrain.")]
+    public float terrainFrequency = 2f;
 
-    public PlanetGenerator(Transform parentTransform) : base(parentTransform)
-    {
-        moonGenerator = new MoonGenerator(parentTransform);
-    }
+    [Tooltip("Maximum terrain elevation as a fraction of the planet radius.")]
+    [Range(0f, 1f)]
+    public float terrainRelief = 0.15f;
 
     /// <summary>
-    /// Generates a planet with a random radius and subdivisions, and places it at an index using the Titius-Bode formula.
+    /// Generates a planet with a random radius, procedural terrain, and LOD
+    /// meshes, and places it using the Titius-Bode formula.
     /// </summary>
     /// <param name="planetIndex">The index of the planet (starting from 0).</param>
     /// <param name="star">The GameObject representing the star the planet orbits around.</param>
-    /// <returns>The generated planet GameObject.</returns>
+    /// <returns>The generated planet GameObject, or null if creation failed.</returns>
     public GameObject GeneratePlanet(int planetIndex, GameObject star)
     {
-        // Generate a planet with a random radius and subdivisions
         float radius = Random.Range(minPlanetRadius, maxPlanetRadius);
-        GameObject planet = GenerateIcosphere(radius, planetSubdivisions);
 
-        // Create LOD meshes for different detail levels
-        Mesh[] lodMeshes = new Mesh[3];
-        lodMeshes[0] = planet.GetComponent<MeshFilter>().mesh;
+        // The same seed is used for every LOD mesh so the relief stays
+        // consistent when the controller switches between detail levels.
+        int terrainSeed = Random.Range(0, 100000);
+        float terrainAmplitude = radius * terrainRelief;
 
-        IcoSphereGenerator generator1 = new IcoSphereGenerator(radius, Mathf.Max(0, planetSubdivisions - 1));
-        Mesh mesh1 = new Mesh();
-        mesh1.vertices = generator1.Vertices.ToArray();
-        mesh1.triangles = generator1.Triangles.ToArray();
-        mesh1.RecalculateNormals();
-        mesh1.RecalculateBounds();
-        lodMeshes[1] = mesh1;
+        Mesh[] lodMeshes = new Mesh[LodLevelCount];
+        for (int lod = 0; lod < LodLevelCount; lod++)
+        {
+            int subdivisions = Mathf.Max(0, planetSubdivisions - lod);
+            IcoSphereGenerator generator = new IcoSphereGenerator(radius, subdivisions);
+            lodMeshes[lod] = generator.BuildMesh($"Planet {planetIndex} LOD{lod}");
+            PlanetTerrainGenerator.ApplyTerrain(lodMeshes[lod], terrainSeed, terrainFrequency, terrainAmplitude);
+        }
 
-        IcoSphereGenerator generator2 = new IcoSphereGenerator(radius, Mathf.Max(0, planetSubdivisions - 2));
-        Mesh mesh2 = new Mesh();
-        mesh2.vertices = generator2.Vertices.ToArray();
-        mesh2.triangles = generator2.Triangles.ToArray();
-        mesh2.RecalculateNormals();
-        mesh2.RecalculateBounds();
-        lodMeshes[2] = mesh2;
+        GameObject planet = CelestialObjectFactory.CreateObject(lodMeshes[0], $"Planet {planetIndex}");
+        if (planet == null)
+        {
+            return null;
+        }
 
+        planet.transform.SetParent(parentTransform);
+
+        // Configure LOD switching; the controller falls back to built-in
+        // distances when the configuration asset is missing.
         PlanetLodConfig lodConfig = Resources.Load<PlanetLodConfig>("Settings/PlanetLodConfig");
         PlanetLodController lodController = planet.AddComponent<PlanetLodController>();
         lodController.Initialize(lodMeshes, lodConfig);
@@ -60,83 +66,49 @@ public class PlanetGenerator : CelestialObject
             benchmark.ApplyConfig(lodConfig);
         }
 
-        // Apply procedural terrain and add a collider for surface interactions
-        PlanetTerrainGenerator.ApplyTerrain(planet);
+        // Collider for surface interactions, kept in sync with the active LOD.
+        // The rigidbody is kinematic, which allows a non-convex mesh collider.
         MeshCollider meshCollider = planet.AddComponent<MeshCollider>();
-        meshCollider.sharedMesh = lodMeshes.Length > 0 ? lodMeshes[0] : planet.GetComponent<MeshFilter>().sharedMesh;
         lodController.SetMeshCollider(meshCollider);
 
-
         // Calculate the planet's position using the Titius-Bode formula and a random angle
-        float planetDistance = TitiusBodeFormula(planetIndex);
+        float planetDistance = TitiusBodeDistance(planetIndex);
         float angle = Random.Range(0, 2 * Mathf.PI);
         float x = planetDistance * Mathf.Cos(angle);
         float z = planetDistance * Mathf.Sin(angle);
-
-        // Set the planet's position and parent it to the Solar System's game object
-        planet.transform.parent = parentTransform;
         planet.transform.localPosition = new Vector3(x, 0, z);
-        Debug.Log($"Planet generated at position : {planet.transform.position}");
 
-        // Add necessary components to the planet
-        planet.AddComponent<Rigidbody>();
-        planet.GetComponent<Rigidbody>().mass = CalculateMass(radius);
-        planet.GetComponent<Rigidbody>().useGravity = false;
+        Rigidbody rigidbody = planet.AddComponent<Rigidbody>();
+        rigidbody.mass = CalculateMass(radius);
+        rigidbody.useGravity = false;
+        rigidbody.isKinematic = true;
+
+        // Attractor used by moons to derive their orbital velocity
         planet.AddComponent<GravityAttractor>();
 
-        // Calculate the orbital speed of the planet
-        float orbitalSpeed = star.GetComponent<GravityAttractor>().InitialOrbitalVelocity(planetDistance * Constants.SCALE_FACTOR);
+        // Kepler-based orbital speed around the star, driven kinematically
+        float distanceToStar = Vector3.Distance(planet.transform.position, star.transform.position);
+        float orbitalSpeed = star.GetComponent<GravityAttractor>().InitialOrbitalVelocity(distanceToStar);
+        Orbiter orbiter = planet.AddComponent<Orbiter>();
+        orbiter.SetOrbit(star.transform, orbitalSpeed * orbitalSpeedMultiplier);
 
-        // Add a GravityAffectedObject component to the planet to make it affected by gravity
-        GravityAffectedObject gravityAffectedObject = planet.AddComponent<GravityAffectedObject>();
-
-        // Set the initial velocity of the planet
-        Vector3 initialVelocity = Quaternion.Euler(0, 0, 90) * (star.transform.position - planet.transform.position).normalized * orbitalSpeed;
-        gravityAffectedObject.GetComponent<Rigidbody>().velocity = initialVelocity;
-
-        // Set the planet's orbital speed
-        planet.AddComponent<Orbiter>();
-        planet.GetComponent<Orbiter>().orbitalVelocity = orbitalSpeed;
-        planet.GetComponent<Orbiter>().centerOfMass = star.transform;
-
-        // Set the planet's rotation speed
+        // Self rotation
         float rotationSpeed = Random.Range(0.1f, 1f) * rotationSpeedMultiplier;
-        planet.AddComponent<Rotator>();
-        planet.GetComponent<Rotator>().angularVelocity = rotationSpeed;
-
-        // Generate moons for the planet
-        int numberOfMoons = Random.Range(0, maxNumberOfMoonsPerPlanet + 1);
-        for (int j = 0; j < numberOfMoons; j++)
-        {
-            moonGenerator.GenerateMoon(planet, j);
-        }
+        Rotator rotator = planet.AddComponent<Rotator>();
+        rotator.angularVelocity = rotationSpeed;
 
         return planet;
     }
 
     /// <summary>
-    /// Calculates the orbital speed of a planet using Kepler's law.
+    /// Calculates the distance of a planet from its star using the Titius-Bode formula.
     /// </summary>
-    /// <param name="starMass">The mass of the central star in kilograms.</param>
-    /// <param name="distance">The distance between the planet and the star in meters.</param>
-    /// <returns>The orbital speed of the planet in meters per second.</returns>
-    private float CalculateOrbitalSpeed(float starMass, float distance)
-    {
-        float orbitalSpeed = Mathf.Sqrt(Constants.GRAVITATIONAL_CONSTANT * starMass / distance);
-
-        return orbitalSpeed;
-    }
-
-    /// <summary>
-    /// Calculates the distance of a planet from the star using the Titius-Bode formula.
-    /// </summary>
-    /// <param name="planetIndex">The index of the planet (starting from 1).</param>
-    /// <returns>The estimated distance of the planet from the star.</returns>
-    private float TitiusBodeFormula(int planetIndex)
+    /// <param name="planetIndex">The index of the planet (starting from 0).</param>
+    /// <returns>The distance of the planet from the star in Unity units.</returns>
+    public static float TitiusBodeDistance(int planetIndex)
     {
         float distanceAU = 0.4f + 0.3f * Mathf.Pow(2, planetIndex - 1);
-        float distance = distanceAU * Constants.AU_TO_UNITY_UNITS * Constants.SCALE_FACTOR;
 
-        return distance;
+        return distanceAU * Constants.AU_TO_UNITY_UNITS * Constants.SCALE_FACTOR;
     }
 }
